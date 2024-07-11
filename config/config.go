@@ -55,7 +55,7 @@ type Config struct {
 
 var defaultConfig = Config{
 	MessageType:          "status",
-	AvatarURL:            "https://raw.githubusercontent.com/masgustavos/alertmanager-discord/master/assets/images/prometheus-logo.png",
+	AvatarURL:            "https://raw.githubusercontent.com/kolesaev/alertmanager-discord/master/assets/images/prometheus-logo.png",
 	Username:             "alertmanager",
 	FiringCountToMention: -1,
 	Status: map[string]StatusAppearance{

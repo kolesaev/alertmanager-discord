@@ -1,4 +1,4 @@
-module github.com/masgustavos/alertmanager-discord
+module github.com/kolesaev/alertmanager-discord
 
 go 1.15
 

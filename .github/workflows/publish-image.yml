@@ -22,12 +22,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: masgustavos/alertmanager-discord
+          images: kolesaev/alertmanager-discord
 
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           push: true
-          tags: masgustavos/alertmanager-discord:${{ steps.meta.outputs.version }},masgustavos/alertmanager-discord:latest
+          tags: kolesaev/alertmanager-discord:${{ steps.meta.outputs.version }},kolesaev/alertmanager-discord:latest
           labels: ${{ steps.meta.outputs.labels }}

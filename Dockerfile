@@ -6,8 +6,8 @@ FROM golang:alpine as builder
 RUN apk update && apk add git && apk add ca-certificates
 # Create appuser
 RUN adduser -D -g '' appuser
-COPY . $GOPATH/src/masgustavos/alertmanager-discord/
-WORKDIR $GOPATH/src/masgustavos/alertmanager-discord/
+COPY . $GOPATH/src/kolesaev/alertmanager-discord/
+WORKDIR $GOPATH/src/kolesaev/alertmanager-discord/
 #get dependancies
 RUN go get -d -v
 #build the binary

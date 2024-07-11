@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/masgustavos/alertmanager-discord/alertmanager"
-	"github.com/masgustavos/alertmanager-discord/config"
+	"github.com/kolesaev/alertmanager-discord/alertmanager"
+	"github.com/kolesaev/alertmanager-discord/config"
 )
 
 // SendAlerts deals with the macro logic of sending alerts to Discord Channels
@@ -205,8 +205,6 @@ func createDiscordMessageEmbeds(
 		} else {
 			embed.Title = fmt.Sprintf("%s\n", alerts[0].Labels["alertname"])
 		}
-
-		embed.URL = alerts[0].GeneratorURL
 
 		for _, alert := range alerts {
 			if alert.Annotations.Description == "" {
