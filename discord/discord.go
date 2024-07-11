@@ -206,8 +206,6 @@ func createDiscordMessageEmbeds(
 			embed.Title = fmt.Sprintf("%s\n", alerts[0].Labels["alertname"])
 		}
 
-		embed.URL = alerts[0].GeneratorURL
-
 		for _, alert := range alerts {
 			if alert.Annotations.Description == "" {
 				embed.Description = "```No description provided```"
