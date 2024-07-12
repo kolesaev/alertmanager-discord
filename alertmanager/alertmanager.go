@@ -1,8 +1,6 @@
 package alertmanager
 
 import (
-	"regexp"
-
 	"github.com/kolesaev/alertmanager-discord/config"
 )
 
@@ -20,15 +18,9 @@ func ExtractBodyInfo(alertmanagerBody MessageBody, config config.Config) Message
 
 	alertName := ""
 
-	urlRegex := regexp.MustCompile(`http.*/graph`)
-
 	for _, alert := range alerts {
 		alertName = alert.Labels["alertname"]
 		status := alert.Status
-
-		if config.PrometheusURL != "" {
-			alert.GeneratorURL = urlRegex.ReplaceAllString(alert.GeneratorURL, config.PrometheusURL+"/graph")
-		}
 
 		severityValue, ok := alert.Labels[config.Severity.Label]
 		if ok {

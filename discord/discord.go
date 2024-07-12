@@ -212,6 +212,7 @@ func createDiscordMessageEmbeds(
 				break
 			}
 			embed.Description = embed.Description + fmt.Sprintf("```%s```\n", alert.Annotations.Description)
+			embed.URL = alert.Annotations.URL
 		}
 
 		priority, err := handleEmbedAppearance(&embed, status, alerts[0], configs)

@@ -1,8 +1,5 @@
 ---
 username: alertmanager
-# Set this URL to be able to click on the embed title and be redirected to
-# Prometheus with the query that generated the alert
-prometheusURL: "http://localhost:9090"
 # Should be "status" or "severity". Defaults to "status".
 messageType: severity
 # How many firing alerts are necessary to add the "rolesToMention" in the message

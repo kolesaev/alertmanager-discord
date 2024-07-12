@@ -7,11 +7,11 @@ type Alert struct {
 	Annotations struct {
 		Summary     string `json:"summary"`
 		Description string `json:"description"`
+		URL         string `json:"url"`
 	}
-	StartsAt     string `json:"startsAt"`
-	EndsAt       string `json:"endsAt"`
-	GeneratorURL string `json:"generatorURL"`
-	Fingerprint  string `json:"fingerprint"`
+	StartsAt    string `json:"startsAt"`
+	EndsAt      string `json:"endsAt"`
+	Fingerprint string `json:"fingerprint"`
 }
 
 // MessageBody represents the fields available in Alertmanager's webhook

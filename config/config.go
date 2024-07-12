@@ -40,7 +40,6 @@ type SeverityDefinition struct {
 
 // Config defines the (.yaml|.json) config structured to be used by the app
 type Config struct {
-	PrometheusURL               string                      `json:"prometheusURL" yaml:"prometheusURL"`
 	AvatarURL                   string                      `json:"avatarURL" yaml:"avatarURL"`
 	Username                    string                      `json:"username" yaml:"username"`
 	MessageType                 string                      `json:"messageType" yaml:"messageType"`

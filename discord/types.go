@@ -10,6 +10,7 @@ type WebhookParams struct {
 
 // MessageEmbed contains some of the available fields in Discord Embeds
 type MessageEmbed struct {
+	URL         string `json:"url,omitempty"`
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
 	Timestamp   string `json:"timestamp,omitempty"`
