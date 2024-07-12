@@ -198,7 +198,7 @@ func createDiscordMessageEmbeds(
 
 	for _, alerts := range alertsGroupedByName {
 
-		embed := MessageEmbed{}
+		embed := MessageEmbed{URL: alerts[0].Annotations.URL}
 
 		if alerts[0].Annotations.Summary != "" {
 			embed.Title = fmt.Sprintf("%s\n", alerts[0].Annotations.Summary)
@@ -212,7 +212,6 @@ func createDiscordMessageEmbeds(
 				break
 			}
 			embed.Description = embed.Description + fmt.Sprintf("```%s```\n", alert.Annotations.Description)
-			embed.URL = alert.Annotations.URL
 		}
 
 		priority, err := handleEmbedAppearance(&embed, status, alerts[0], configs)
