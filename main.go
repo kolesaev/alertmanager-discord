@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kolesaev/alertmanager-discord/alertmanager"
@@ -36,6 +37,14 @@ func main() {
 		c.String(http.StatusOK, "Channel: %s", channelName)
 	})
 
-	router.Run()
+	s := &http.Server{
+		Addr:           configs.ListenAddress,
+		Handler:        router,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	s.ListenAndServe()
 
 }

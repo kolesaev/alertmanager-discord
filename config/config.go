@@ -62,6 +62,7 @@ type TimeDisplayConfig struct {
 // Config defines the (.yaml|.json) config structured to be used by the app
 type Config struct {
 	AvatarURL                   string                      `json:"avatarURL" yaml:"avatarURL"`
+	ListenAddress               string                      `json:"listenAddress,omitempty" yaml:"listenAddress,omitempty"`
 	Username                    string                      `json:"username" yaml:"username"`
 	MessageType                 string                      `json:"messageType" yaml:"messageType"`
 	Status                      map[string]StatusAppearance `json:"status" yaml:"status"`
@@ -77,6 +78,7 @@ type Config struct {
 }
 
 var defaultConfig = Config{
+	ListenAddress:        ":8080",
 	MessageType:          "status",
 	AvatarURL:            "https://raw.githubusercontent.com/kolesaev/alertmanager-discord/master/assets/images/prometheus-logo.png",
 	Username:             "alertmanager",
