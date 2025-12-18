@@ -1,12 +1,6 @@
 route:
   receiver: "discord-default"
 
-  group_by:
-    - severity
-    - alertname
-    - summary
-    - url
-
   # How long to initially wait to send a notification for a group
   # of alerts. Allows to wait for an inhibiting alert to arrive or collect
   # more initial alerts for the same group. (Usually ~0s to few minutes.)

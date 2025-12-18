@@ -66,7 +66,7 @@ dashboardLink:
   label: "url"                     # Label name to look for dashboard URL (commonly "url" or "grafana_url")
   text: "Open in Dashboard"        # Text for the dashboard link
 
-# Generator URL configuration
+# Generator URL configuration  
 # If enabled, will add a link to the Prometheus/VictoriaMetrics query
 generatorLink:
   enabled: true                    # Whether to show generator links
