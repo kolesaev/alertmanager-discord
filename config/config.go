@@ -38,9 +38,29 @@ type SeverityDefinition struct {
 	Values map[string]SeverityAppearance `json:"values" yaml:"values"`
 }
 
+// DashboardLinkConfig defines configuration for dashboard links
+type DashboardLinkConfig struct {
+	Enabled bool   `json:"enabled" yaml:"enabled"`
+	Label   string `json:"label" yaml:"label"`
+	Text    string `json:"text" yaml:"text"`
+}
+
+// GeneratorLinkConfig defines configuration for generator links
+type GeneratorLinkConfig struct {
+	Enabled bool   `json:"enabled" yaml:"enabled"`
+	Text    string `json:"text" yaml:"text"`
+}
+
+// TimeDisplayConfig defines configuration for time display
+type TimeDisplayConfig struct {
+	Enabled      bool   `json:"enabled" yaml:"enabled"`
+	StartsAtText string `json:"startsAtText" yaml:"startsAtText"`
+	EndsAtText   string `json:"endsAtText" yaml:"endsAtText"`
+	DurationText string `json:"durationText" yaml:"durationText"`
+}
+
 // Config defines the (.yaml|.json) config structured to be used by the app
 type Config struct {
-	PrometheusURL               string                      `json:"prometheusURL" yaml:"prometheusURL"`
 	AvatarURL                   string                      `json:"avatarURL" yaml:"avatarURL"`
 	Username                    string                      `json:"username" yaml:"username"`
 	MessageType                 string                      `json:"messageType" yaml:"messageType"`
@@ -49,8 +69,11 @@ type Config struct {
 	RolesToMention              []string                    `json:"rolesToMention" yaml:"rolesToMention"`
 	SeveritiesToMention         []string                    `json:"severitiesToMention" yaml:"severitiesToMention"`
 	SeveritiesToIgnoreWhenAlone []string                    `json:"severitiesToIgnoreWhenAlone" yaml:"severitiesToIgnoreWhenAlone"`
-	Severity                    SeverityDefinition
-	DiscordChannels             map[string]DiscordChannel `json:"channels" yaml:"channels"`
+	Severity                    SeverityDefinition          `json:"severity" yaml:"severity"`
+	DashboardLink               DashboardLinkConfig         `json:"dashboardLink" yaml:"dashboardLink"`
+	GeneratorLink               GeneratorLinkConfig         `json:"generatorLink" yaml:"generatorLink"`
+	TimeDisplay                 TimeDisplayConfig           `json:"timeDisplay" yaml:"timeDisplay"`
+	DiscordChannels             map[string]DiscordChannel   `json:"channels" yaml:"channels"`
 }
 
 var defaultConfig = Config{
@@ -60,7 +83,7 @@ var defaultConfig = Config{
 	FiringCountToMention: -1,
 	Status: map[string]StatusAppearance{
 		"firing": {
-			Emoji: ":x:",
+			Emoji: ":rotating_light:",
 			Color: 10038562, // EmbedColorDarkRed
 		},
 		"resolved": {
@@ -79,14 +102,23 @@ var defaultConfig = Config{
 				Color: 3447003, // EmbedColorBlue
 				Emoji: ":information_source:",
 			},
+			"info": {
+				Color: 3447003, // EmbedColorBlue
+				Emoji: ":information_source:",
+			},
 			"warning": {
+				Color:    15844367, // EmbedColorGold
+				Emoji:    ":warning:",
+				Priority: 1,
+			},
+			"warn": {
 				Color:    15844367, // EmbedColorGold
 				Emoji:    ":warning:",
 				Priority: 1,
 			},
 			"critical": {
 				Color:    11027200, // EmbedColorDarkOrange
-				Emoji:    ":x:",
+				Emoji:    ":rotating_light:",
 				Priority: 2,
 			},
 			"disaster": {
@@ -96,26 +128,43 @@ var defaultConfig = Config{
 			},
 		},
 	},
+	DashboardLink: DashboardLinkConfig{
+		Enabled: false,
+		Label:   "url",
+		Text:    "Open in Dashboard",
+	},
+	GeneratorLink: GeneratorLinkConfig{
+		Enabled: false,
+		Text:    "Open in PromQL",
+	},
+	TimeDisplay: TimeDisplayConfig{
+		Enabled:      false,
+		StartsAtText: "Started at:",
+		EndsAtText:   "Ended at:",
+		DurationText: "Duration:",
+	},
 }
 
 // LoadUserConfig provides a Config struct to be used throughout the application
 func LoadUserConfig() *Config {
-
 	configFilePath := getEnv("CONFIG_PATH", "./config.yaml")
+
 	userConfig := loadConfigurationFile(configFilePath)
 
-	err := mergo.Merge(&userConfig, defaultConfig)
+	config := defaultConfig
+
+	err := mergo.Merge(&config, userConfig, mergo.WithOverride)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	yamlConfig, err := yaml.Marshal(userConfig)
+	yamlConfig, err := yaml.Marshal(config)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("Using the following config:\n\n=======\n\n%s\n\n========\n\n", string(yamlConfig))
 
-	return &userConfig
+	return &config
 }
 
 func loadConfigurationFile(file string) Config {

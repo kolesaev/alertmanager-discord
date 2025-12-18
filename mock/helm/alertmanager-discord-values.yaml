@@ -30,6 +30,28 @@ config:
   # prefixed with "\" and send a message in the channel. Like "\@RoleName"
   rolesToMention:
     - <@&744580719505965077>
+
+  # Dashboard link configuration
+  # If enabled, will add a link to the dashboard URL found in alert labels
+  dashboardLink:
+    enabled: true                    # Whether to show dashboard links
+    label: "grafana_url"                     # Label name to look for dashboard URL (commonly "url" or "grafana_url")
+    text: "Open in Dashboard"        # Text for the dashboard link
+
+  # Generator URL configuration
+  # If enabled, will add a link to the Prometheus/VictoriaMetrics query
+  generatorLink:
+    enabled: true                    # Whether to show generator links
+    text: "Open in Prometheus"       # Text for the generator link
+
+  # Time display configuration
+  # If enabled, will show alert start/end times and duration inside code blocks
+  timeDisplay:
+    enabled: true                    # Whether to show time information
+    startsAtText: "Started at:"      # Text prefix for alert start time
+    endsAtText: "Ended at:"          # Text prefix for alert end time (resolved only)
+    durationText: "Duration:"        # Text prefix for alert duration (resolved only)
+
   # Embed esthetics when the messageType is set to "status"
   status:
     firing:

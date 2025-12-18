@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/kolesaev/alertmanager-discord/alertmanager"
 	"github.com/kolesaev/alertmanager-discord/config"
@@ -94,11 +95,30 @@ func createDiscordMessage(
 	discordChannel config.DiscordChannel,
 	configs config.Config) (message WebhookParams, err error) {
 
-	content := fmt.Sprintf(
-		"Firing: %d  |  Resolved: %d",
-		alertmanagerBodyInfo.FiringCount, alertmanagerBodyInfo.ResolvedCount)
+	var contentBuilder strings.Builder
 
-	handleMentions(alertmanagerBodyInfo, &content, discordChannel, configs)
+	handleMentions(alertmanagerBodyInfo, &contentBuilder, discordChannel, configs)
+
+	var dashboardURL string
+	if configs.DashboardLink.Enabled {
+		dashboardURL = getDashboardURLFromGroup(alertmanagerBodyInfo, configs)
+		if dashboardURL != "" {
+			contentBuilder.WriteString(fmt.Sprintf("\n[%s](%s)",
+				configs.DashboardLink.Text, dashboardURL))
+		}
+	}
+
+	var generatorURL string
+	if configs.GeneratorLink.Enabled {
+		generatorURL = getGeneratorURLFromAlerts(alertmanagerBodyInfo)
+		if generatorURL != "" {
+			if configs.DashboardLink.Enabled && dashboardURL != "" {
+				contentBuilder.WriteString("\n")
+			}
+			contentBuilder.WriteString(fmt.Sprintf("[%s](%s)",
+				configs.GeneratorLink.Text, generatorURL))
+		}
+	}
 
 	firingEmbeds, err := createDiscordMessageEmbeds(alertmanagerBodyInfo.FiringAlertsGroupedByName,
 		"firing", configs)
@@ -117,15 +137,55 @@ func createDiscordMessage(
 	embeds := append(firingEmbeds, resolvedEmbeds...)
 
 	return WebhookParams{
-		Content:   content,
+		Content:   contentBuilder.String(),
 		Embeds:    embeds,
 		Username:  configs.Username,
 		AvatarURL: configs.AvatarURL}, nil
 }
 
+func getDashboardURLFromGroup(alertmanagerBodyInfo alertmanager.MessageBodyInfo, configs config.Config) string {
+	labelName := configs.DashboardLink.Label
+
+	if url, ok := alertmanagerBodyInfo.GroupLabels[labelName]; ok && url != "" {
+		return url
+	}
+
+	if url, ok := alertmanagerBodyInfo.CommonLabels[labelName]; ok && url != "" {
+		return url
+	}
+
+	if url, ok := alertmanagerBodyInfo.CommonAnnotations[labelName]; ok && url != "" {
+		return url
+	}
+
+	return ""
+}
+
+func getGeneratorURLFromAlerts(alertmanagerBodyInfo alertmanager.MessageBodyInfo) string {
+	// Check firing alerts first
+	for _, groupData := range alertmanagerBodyInfo.FiringAlertsGroupedByName {
+		for _, alert := range groupData.Alerts {
+			if alert.GeneratorURL != "" {
+				return alert.GeneratorURL
+			}
+		}
+	}
+
+	// If not found in firing, check resolved alerts
+	for _, groupData := range alertmanagerBodyInfo.ResolvedAlertsGroupedByName {
+		for _, alert := range groupData.Alerts {
+			if alert.GeneratorURL != "" {
+				return alert.GeneratorURL
+			}
+		}
+	}
+
+	return ""
+}
+
 func handleMentions(
 	alertmanagerBodyInfo alertmanager.MessageBodyInfo,
-	content *string,
+	contentBuilder *strings.Builder,
 	discordChannel config.DiscordChannel,
 	configs config.Config) {
 
@@ -142,7 +202,7 @@ func handleMentions(
 	shouldMentionByFiringCount := checkIfShouldMentionByFiringCount(alertmanagerBodyInfo, configs)
 
 	if shouldMentionBySeverity || shouldMentionByFiringCount {
-		addRolesToEmbedContent(content, discordChannel, configs)
+		addRolesToEmbedContent(contentBuilder, discordChannel, configs)
 	}
 
 }
@@ -176,15 +236,15 @@ func checkIfShouldMentionByFiringCount(
 }
 
 func addRolesToEmbedContent(
-	content *string,
+	contentBuilder *strings.Builder,
 	discordChannel config.DiscordChannel,
 	configs config.Config) {
 
 	// Channels can override rolesToMention
 	if len(discordChannel.RolesToMention) > 0 {
-		*content = *content + "    " + strings.Join(discordChannel.RolesToMention, " ")
+		contentBuilder.WriteString("    " + strings.Join(discordChannel.RolesToMention, " "))
 	} else {
-		*content = *content + "    " + strings.Join(configs.RolesToMention, " ")
+		contentBuilder.WriteString("    " + strings.Join(configs.RolesToMention, " "))
 	}
 
 }
@@ -196,32 +256,56 @@ func createDiscordMessageEmbeds(
 
 	embedQueue := []EmbedQueueItem{}
 
-	for _, alerts := range alertsGroupedByName {
-
+	for _, groupData := range alertsGroupedByName {
 		embed := MessageEmbed{}
 
-		if alerts[0].Annotations.Summary != "" {
-			embed.Title = fmt.Sprintf("%s\n", alerts[0].Annotations.Summary)
-		} else {
-			embed.Title = fmt.Sprintf("%s\n", alerts[0].Labels["alertname"])
-		}
+		// Get title using correct Telegram template logic
+		title := getAlertTitle(groupData.Alerts, groupData.GroupLabels)
+		embed.Title = fmt.Sprintf("%s\n", title)
 
-		for _, alert := range alerts {
-			if alert.Annotations.Description == "" {
-				embed.Description = "```No description provided```"
-				break
+		description := ""
+		for _, alert := range groupData.Alerts {
+			alertText := "```"
+
+			if configs.TimeDisplay.Enabled {
+				alertText += "🔔\n"
 			}
-			embed.Description = embed.Description + fmt.Sprintf("```%s```\n", alert.Annotations.Description)
+
+			if alert.Annotations["description"] == "" {
+				alertText += "No description provided\n"
+			} else {
+				alertText += strings.TrimSuffix(strings.TrimSuffix(alert.Annotations["description"], "\n"), "\n") + "\n"
+			}
+
+			if configs.TimeDisplay.Enabled {
+				timeInfo := formatAlertTimeInfo(alert, status, configs)
+				if timeInfo != "" {
+					alertText += "\n" + timeInfo
+				}
+			}
+
+			alertText += "```"
+
+			description += alertText
 		}
 
-		priority, err := handleEmbedAppearance(&embed, status, alerts[0], configs)
+		if len(description) > 0 {
+			description = strings.TrimSuffix(description, "\n\n")
+		}
+
+		priority, err := handleEmbedAppearance(&embed, status, groupData.Alerts[0], configs)
 		if err != nil {
 			err = fmt.Errorf(
 				`discord.createDiscordMessageEmbeds:
 				Couldn't handle embed appearance for embed %+v and alert %+v: \n%+v`,
-				embed, alerts[0], err)
+				embed, groupData.Alerts[0], err)
 			return []MessageEmbed{}, err
 		}
+
+		title = "### " + embed.Title + "\n"
+		embed.Title = ""
+
+		embed.Description = title + description
 
 		embedQueueItem := EmbedQueueItem{
 			Embed:    embed,
@@ -242,6 +326,35 @@ func createDiscordMessageEmbeds(
 	}
 
 	return embedsOrderedByPriority, nil
+}
+
+// getAlertTitle extracts title from group data following Telegram template logic
+func getAlertTitle(alerts []alertmanager.Alert, groupLabels map[string]string) string {
+	// 1. First try GroupLabels.summary
+	if summary, ok := groupLabels["summary"]; ok && summary != "" {
+		return summary
+	}
+
+	// 2. Search in alerts annotations
+	for _, alert := range alerts {
+		if summary, ok := alert.Annotations["summary"]; ok && summary != "" {
+			return summary
+		}
+	}
+
+	// 3. Try GroupLabels.alertname
+	if alertname, ok := groupLabels["alertname"]; ok && alertname != "" {
+		return alertname
+	}
+
+	// 4. Use alertname from first alert
+	if len(alerts) > 0 {
+		if alertname, ok := alerts[0].Labels["alertname"]; ok && alertname != "" {
+			return alertname
+		}
+	}
+
+	return "Unknown Alert"
 }
 
 func handleEmbedAppearance(
@@ -284,4 +397,64 @@ func handleEmbedSeverity(embed *MessageEmbed, alert alertmanager.Alert, configs 
 		embed.Color = SeverityAppearance.Color
 	}
 	return SeverityAppearance
+}
+
+func formatAlertTimeInfo(alert alertmanager.Alert, status string, configs config.Config) string {
+	if !configs.TimeDisplay.Enabled {
+		return ""
+	}
+
+	var timeInfo strings.Builder
+
+	startsAt, err := time.Parse(time.RFC3339, alert.StartsAt)
+	if err != nil {
+		log.Printf("ERROR: Failed to parse StartsAt time: %v", err)
+		return ""
+	}
+
+	localStartsAt := startsAt.Format("02.01.2006 15:04:05 MST")
+
+	timeInfo.WriteString(fmt.Sprintf("🕑\n%s %s", configs.TimeDisplay.StartsAtText, localStartsAt))
+
+	if status == "resolved" && alert.EndsAt != "" {
+		endsAt, err := time.Parse(time.RFC3339, alert.EndsAt)
+		if err != nil {
+			log.Printf("ERROR: Failed to parse EndsAt time: %v", err)
+		} else {
+			localEndsAt := endsAt.Format("02.01.2006 15:04:05 MST")
+			duration := endsAt.Sub(startsAt)
+
+			// Format duration
+			durationStr := formatDuration(duration)
+
+			timeInfo.WriteString(fmt.Sprintf("\n%s %s", configs.TimeDisplay.EndsAtText, localEndsAt))
+			timeInfo.WriteString(fmt.Sprintf("\n%s %s", configs.TimeDisplay.DurationText, durationStr))
+		}
+	}
+
+	return timeInfo.String()
+}
+
+func formatDuration(d time.Duration) string {
+	days := int(d.Hours() / 24)
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
+
+	var parts []string
+
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if seconds > 0 || len(parts) == 0 {
+		parts = append(parts, fmt.Sprintf("%ds", seconds))
+	}
+
+	return strings.Join(parts, " ")
 }

@@ -1,8 +1,4 @@
----
-username: alertmanager
-# Set this URL to be able to click on the embed title and be redirected to
-# Prometheus with the query that generated the alert
-prometheusURL: "http://localhost:9090"
+username: bot
 # Should be "status" or "severity". Defaults to "status".
 messageType: severity
 # How many firing alerts are necessary to add the "rolesToMention" in the message
@@ -16,7 +12,7 @@ rolesToMention:
 # Embed esthetics when the messageType is set to "status"
 status:
   firing:
-    emoji: ":x:"
+    emoji: ":rotating_light:"
     color: 10038562 #EmbedColorDarkRed
   resolved:
     emoji: ":white_check_mark:"
@@ -34,13 +30,20 @@ severity:
     information:
       color: 3447003 # EmbedColorBlue
       emoji: ":information_source:"
+    info:
+      color: 3447003 # EmbedColorBlue
+      emoji: ":information_source:"
     warning:
+      color: 15844367 # EmbedColorGold
+      emoji: ":warning:"
+      priority: 1
+    warn:
       color: 15844367 # EmbedColorGold
       emoji: ":warning:"
       priority: 1
     critical:
       color: 11027200 # EmbedColorDarkOrange
-      emoji: ":x:"
+      emoji: ":rotating_light:"
       priority: 2
     disaster:
       color: 10038562 # EmbedColorDarkRed
@@ -55,19 +58,41 @@ severitiesToMention:
 # for example.
 severitiesToIgnoreWhenAlone:
   - information
+
+# Dashboard link configuration
+# If enabled, will add a link to the dashboard URL found in alert labels
+dashboardLink:
+  enabled: true                    # Whether to show dashboard links
+  label: "url"                     # Label name to look for dashboard URL (commonly "url" or "grafana_url")
+  text: "Open in Dashboard"        # Text for the dashboard link
+
+# Generator URL configuration
+# If enabled, will add a link to the Prometheus/VictoriaMetrics query
+generatorLink:
+  enabled: true                    # Whether to show generator links
+  text: "Open in PromQL"           # Text for the generator link
+
+# Time display configuration
+# If enabled, will show alert start/end times and duration inside code blocks
+timeDisplay:
+  enabled: true                    # Whether to show time information
+  startsAtText: "Started at:"      # Text prefix for alert start time
+  endsAtText: "Ended at:"          # Text prefix for alert end time (resolved only)
+  durationText: "Duration:"        # Text prefix for alert duration (resolved only)
+
 # The Discord channels and their basic info, with any necessary overrides from
 # the global configs, such as "rolesToMention", "severitiesToMention" and
 # "severitiesToIgnoreWhenAlone"
 channels:
   default:
     name: default
-    webhookURL: https://discord.com/api/webhooks/809132387233431572/5JfB6aCqwAcCtl373q5hVR7Ba69mJ_GmKUbZdn_Ml1V2OGxIeqSF_7yRweJY3wZT3bZz
+    webhookURL: https://discord.com/api/webhooks/EXAMPLE1
   team-go:
     name: team-go
-    webhookURL: https://discord.com/api/webhooks/806249501110698038/YbG6dErH5NZvjgOHtV-bMyE29A9LK3c2mP5X79PmRkKlUMejAjdpJeNOpud-7wOPZsge
+    webhookURL: https://discord.com/api/webhooks/EXAMPLE2
   team-prometheus:
     name: team-prometheus
-    webhookURL: https://discord.com/api/webhooks/806537845048737792/4bylYwmt4MUewAFCdquKnG6famTItSL0DmNpPLvu9xO83yvd7yHjrFNYgj-B5D-OD0MG
+    webhookURL: https://discord.com/api/webhooks/EXAMPLE3
     severitiesToMention:
       - disaster
       - critical

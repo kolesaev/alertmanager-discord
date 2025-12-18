@@ -2,16 +2,13 @@ package alertmanager
 
 // Alert represents the alert object in Alertmanager's webhook body
 type Alert struct {
-	Status      string            `json:"status"`
-	Labels      map[string]string `json:"labels"`
-	Annotations struct {
-		Summary     string `json:"summary"`
-		Description string `json:"description"`
-	}
-	StartsAt     string `json:"startsAt"`
-	EndsAt       string `json:"endsAt"`
-	GeneratorURL string `json:"generatorURL"`
-	Fingerprint  string `json:"fingerprint"`
+	Status       string            `json:"status"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	GeneratorURL string            `json:"generatorURL"`
+	StartsAt     string            `json:"startsAt"`
+	EndsAt       string            `json:"endsAt"`
+	Fingerprint  string            `json:"fingerprint"`
 }
 
 // MessageBody represents the fields available in Alertmanager's webhook
@@ -35,8 +32,15 @@ type MessageBodyInfo struct {
 	CountBySeverity             map[string]int
 	FiringAlertsGroupedByName   AlertsGroupedByLabel
 	ResolvedAlertsGroupedByName AlertsGroupedByLabel
+	GroupLabels                 map[string]string
+	CommonLabels                map[string]string
+	CommonAnnotations           map[string]string
+	ExternalURL                 string
 }
 
 // AlertsGroupedByLabel is just a wrapper for the common case of grouping
 // alerts by label, such as "alertname"
-type AlertsGroupedByLabel map[string][]Alert
+type AlertsGroupedByLabel map[string]struct {
+	Alerts      []Alert
+	GroupLabels map[string]string
+}

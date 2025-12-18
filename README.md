@@ -1,118 +1,183 @@
 # Alertmanager Discord Webhook
-![Go Report Card](https://goreportcard.com/badge/github.com/masgustavos/alertmanager-discord?style=flat-square)
+
+![Go Report Card](https://goreportcard.com/badge/github.com/kolesaev/alertmanager-discord?style=flat-square)
 
 ## Goal
 
-The goal of this applications is to serve as a customizable Discord webhook for Alertmanager.
+The goal of this application is to serve as a customizable Discord webhook for Alertmanager with enhanced features for modern monitoring workflows.
 
-With its default configuration, the application behaves similarly to [benjojo's alertmanager-discord](https://github.com/benjojo/alertmanager-discord), aggregating alerts by status and sending them with a colored embed accordingly. Adding to that, we're able to route alerts to multiple channels in a single instance and group by `alertname`.
+Based on the original [alertmanager-discord](https://github.com/masgustavos/alertmanager-discord) by masgustavos, this fork adds powerful new capabilities while maintaining compatibility with existing configurations.
 
-However, there are a few other things you might want in a production environment, such as:
+## Enhanced Features
 
-- Define Discord Roles to be mentioned when:
-  - There are too many firing alerts;
-  - Any of the alerts contains a specified severity value, like "critical" or "disaster";
-- Change Embed appearance to provide better visual clues of what is going on;
-- Define a priority to each severity, so the alerts are always shown in an expected order.
+### 🎯 Smart Alert Processing
+- **Dashboard Links**: Automatically add Grafana dashboard links when URL is provided in alert labels
+- **Prometheus Query Links**: Include direct links to Prometheus/VictoriaMetrics queries for quick investigation
+- **Time Information Display**: Show alert start/end times and duration with configurable labels
+- **Intelligent Title Extraction**: Follows Telegram template logic for consistent alert titles
 
-## How it looks like
+### 🎨 Flexible Configuration
+- **Multiple Message Types**: Choose between `status` or `severity` based message formatting
+- **Configurable Severity Levels**: Customize colors, emojis, and priorities for different severity levels
+- **Mention Control**: Configure which roles to mention based on severity or alert count thresholds
+- **Channel-specific Overrides**: Different configurations for different Discord channels
 
-> To reproduce these prints, check [Develop and Experiment](#develop-and-experiment)
+### 🔗 External Integration
+- **Dashboard Link Configuration**: Customize dashboard URL labels and link text
+- **Generator URL Support**: Add links to Prometheus query pages automatically
+- **Time Display Options**: Control how and when to show alert timing information
 
-In it's default configuration, here's how the message should look like:
+## How It Works
 
-![Status Message Type](assets/images/status-message-type.png)
+### Alert Flow
+1. **Prometheus** evaluates alert rules and sends firing alerts to **Alertmanager**
+2. **Alertmanager** routes alerts based on label matching to the appropriate webhook receiver
+3. **This application** processes the alerts and sends formatted messages to **Discord**
 
-Using severity message type:
-
-![Severity Message Type](assets/images/severity-message-type.png)
-
-## How To Use It
-
-The application expects Alertmanager's webhook body in the path `/:channel`. The `channel` should match one of the provided Discord channel keys in the [configuration](#configuration). As stated before, you can have as many channels as you want, as long as they are represented by a different key in the `channels` config property. That is the only routing logic provided by this application, since Alertmanager has a rich routing configuration itself, based on label matching. You can freely [Experiment with this configurations](#develop-and-experiment) using this repo.
-
-1. You begin by defining [alert rules](mock/prometheus/alert-rules/alert-rules.yaml) in Prometheus. This rules will be evaluated and sent to Alertmanager as defined in the `alerting` field in [prometheus.yaml](mock/prometheus/prometheus.yaml) configuration.
-2. Then you should create your routing logic in [Alertmanager's config file](mock/alertmanager/config.yaml), using labels to define which receivers (webhooks in our case) should handle the Alerts. That is the moment we define to which Discord channel the alerts will be sent. Here's a snippet from the config:
+### Routing Example
 
 ```yaml
-  routes:
-    # Any alert that contains the label "owner: team-go" should be sent to the
-    # Discord Channel #team-go, represented by the receiver "discord-team-go"
-    - match:
-        owner: team-prometheus
-      receiver: "discord-team-prometheus"
-      continue: false
-    - match:
-        owner: team-go
-      receiver: "discord-team-go"
-      # If you want matching alerts to also go to the global receiver "discord-default"
-      # set "continue: true". They'll join alerts not matched and will be sent together.
-      continue: true
-    - receiver: "discord-default"
+group_by:
+  - severity
+  - alertname
+  - summary
+  - url
+
+routes:
+  - match:
+      severity: critical
+    receiver: "discord-critical"
+    continue: true
+  - match:
+      team: platform
+    receiver: "discord-platform"
+    continue: false
+  - receiver: "discord-default"
+
 receivers:
   - name: "discord-default"
     webhook_configs:
       - send_resolved: true
         url: "http://app:8080/default"
-  - name: "discord-team-go"
+  - name: "discord-critical"
     webhook_configs:
       - send_resolved: true
-        url: "http://app:8080/team-go"
-  - name: "discord-team-prometheus"
+        url: "http://app:8080/critical"
+  - name: "discord-platform"
     webhook_configs:
       - send_resolved: true
-        url: "http://app:8080/team-prometheus"
+        url: "http://app:8080/platform"
 ```
 
-3. Last, but not least, you should configure the application choosing one of the following approaches:
-   1. Status based: If `messageType` is set to `status` (the default), the application will only group alerts by name and send them with embeds stylized accordingly to `status`.
-   2. Severity based: If `messageType` is set to `severity`, some features will be enabled, such as:
-      1. Choose the label name that carries the severity levels. Default is `severity`;
-      2. Change the embed's color and title emoji based on severity value;
-      3. *Choose which severities should trigger a mention in Discord;
-      4. *Choose which severities can be ignored when not accompanied by others. E.g.: Only send alerts with severity "information" if any other of higher severity is also triggered;
+## New Configuration Options
 
-> *Can be set globally or by Channel
+### Dashboard Links
+```yaml
+dashboardLink:
+  enabled: true                    # Enable dashboard links
+  label: "url"                     # Label containing dashboard URL (commonly "url" or "grafana_url")
+  text: "Open in Dashboard"        # Link text to display
+```
 
-Take a look at the [example config](config.example.yaml)! Each property is commented for better understanding. You can use either JSON or YAML for the config file, as long as it finishes with one of the following extensions: `.json`, `.yaml`, `.yml`
+### Generator Links
+```yaml
+generatorLink:
+  enabled: true                    # Enable generator links
+  text: "Open in PromQL"           # Link text for Prometheus queries
+```
 
-Copy the example config to a file named `my-config.yaml` and use your own *webhookURLs*. This is the filename expected by docker-compose. This file is gitignored.
+### Time Display
+```yaml
+timeDisplay:
+  enabled: true                    # Show time information in alerts
+  startsAtText: "Started at:"      # Label for alert start time
+  endsAtText: "Ended at:"          # Label for alert end time (resolved alerts only)
+  durationText: "Duration:"        # Label for alert duration (resolved alerts only)
+```
 
-> You cannot have the word `discord` in the `username` config property. Hence, the default username is `alertmanager`, but this is an assumption and you can change it at will. See [config.go](config/config.go) to check all the possible customizations.
+## Example Message Output
 
-### Install in Kubernetes with Helm
+### Message Header
+```
+[Open in Dashboard](https://grafana.example.com/d/abc123)
+[Open in PromQL](https://prometheus.example.com/graph?g0.expr=...)
+```
 
-There's a Helm Chart available at [masgustavos/helm/alertmanager-discord](https://github.com/masgustavos/helm/tree/main/charts/alertmanager-discord). Take a look at the [example values](mock/helm/) for both the [alertmanager-discord](mock/helm/values-ad.yaml) and the [community Prometheus Helm Chart](https://github.com/prometheus-community/helm-charts) (which includes the config for Alertmanager).
+### Alert Embed (Firing)
+**Title:** `⚠️ High CPU usage on server-web-01`
+
+**Description:**
+```
+🔔
+CPU usage is above 80% for more than 5 minutes
+
+🕑
+Started at: 18.12.2025 14:30:15 UTC
+```
+
+### Alert Embed (Resolved)
+**Title:** `✅ High CPU usage on server-web-01`
+
+**Description:**
+```
+🔔
+CPU usage is above 80% for more than 5 minutes
+
+🕑
+Started at: 18.12.2025 14:30:15 UTC
+Ended at: 18.12.2025 14:45:30 UTC
+Duration: 15m 15s
+```
+
+## Message Types
+
+### Status-Based Messages
+When `messageType` is set to `status` (default), alerts are grouped by name and styled according to their status (firing/resolved).
+
+### Severity-Based Messages
+When `messageType` is set to `severity`, additional features are enabled:
+- Customizable severity label name (default: `severity`)
+- Different colors and emojis for each severity level
+- Priority-based ordering (higher priority alerts shown first)
+- Configurable mentions based on severity
+- Option to ignore certain severities when alone
+
+## Installation
+
+### Docker Compose
+1. Copy `config.example.yaml` to `config.yaml`
+2. Update with your Discord webhook URLs and configuration
+3. Run with `docker-compose up -d`
+
+### Kubernetes with Helm
+A Helm chart is available for easy Kubernetes deployment:
 
 ```bash
-# Add the repository
 helm repo add masgustavos https://masgustavos.github.io/helm
-# Install the chart
-helm install alertmanager-discord --values <path_to_your_values> masgustavos/alertmanager-discord
+helm install alertmanager-discord --values values.yaml masgustavos/alertmanager-discord
 ```
 
+## Configuration File
 
-## Develop and Experiment
+The application supports both YAML and JSON configuration files. See `config.example.yaml` for a fully commented example with all available options.
 
-> Remember to copy the [config.example.yaml](config.example.yaml) file to a file named `my-config.yaml` and change the webhookURLs! If you want to use a different name, remember to change the `CONFIG_PATH` ENV var on [docker-compose.yaml](docker-compose.yaml).
+### Key Configuration Sections
+- **`severity`**: Define severity levels, colors, emojis, and priorities
+- **`status`**: Configure appearance for firing and resolved alerts
+- **`channels`**: Discord channel-specific configurations and webhook URLs
+- **`dashboardLink`/`generatorLink`**: Configure external link generation
+- **`timeDisplay`**: Control time information display in alerts
 
-There's a [docker-compose.yaml](docker-compose.yaml) with an ephemeral Prometheus and Alertmanager, so you can spin up a small environment and test different configurations. The configuration files to be mounted in the testing containers can be found in the [mock](mock/) folder:
+## Development and Experimentation
 
-- [alertmanager/config.yaml](mock/alertmanager/config.yaml): Experiment with route matching and receivers to experience what the app has to offer;
-  - [Routing tree editor](https://www.prometheus.io/webtools/alerting/routing-tree-editor/)
-  - [Route Configuration](https://prometheus.io/docs/alerting/latest/configuration/#route)
-- [prometheus/prometheus.yaml](mock/prometheus/prometheus.yaml): Configure Prometheus to your liking (`scrape_interval`, `evaluation_interval`, etc.) and define any necessary `external_labels`;
-- [prometheus/alert-rules/](mock/prometheus/alert-rules/): Define as many alert rules as you want in the `*.yaml` format (as defined in [prometheus/prometheus.yaml](mock/prometheus/prometheus.yaml)).
+Use the provided docker-compose setup to experiment with different configurations:
+- `mock/prometheus/`: Sample Prometheus configuration with alert rules
+- `mock/alertmanager/`: Alertmanager configuration with routing rules
+- `mock/helm/`: Helm chart values for Kubernetes deployment
 
-To execute the application simply run `docker-compose up`. Whenever you change your config, run `docker-compose restart app`.
+## Discord Colors Reference
 
-### ToDO
-
-- Send message in batches when there is more than 10 embeds;
-
-## Miscellaneous
-
-- Discord Colors
+When configuring severity colors, use these Discord color codes:
 
 ```yaml
 EmbedColorAqua: 1752220
@@ -138,3 +203,11 @@ EmbedColorDarkNavy: 2899536
 EmbedColorLuminousVividPink: 16580705
 EmbedColorDarkVividPink: 12320855
 ```
+
+## Compatibility
+
+This fork maintains backward compatibility with existing configurations from the original project. All original features work as expected, with new features being opt-in through configuration.
+
+## Credits
+
+This project is based on [alertmanager-discord](https://github.com/masgustavos/alertmanager-discord) by masgustavos, extended with additional features for modern monitoring workflows.

@@ -10,10 +10,12 @@ type WebhookParams struct {
 
 // MessageEmbed contains some of the available fields in Discord Embeds
 type MessageEmbed struct {
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
-	Timestamp   string `json:"timestamp,omitempty"`
-	Color       int    `json:"color,omitempty"`
+	DashbURL     string `json:"dashb_url,omitempty"`
+	GeneratorURL string `json:"generator_url,omitempty"`
+	Title        string `json:"title,omitempty"`
+	Description  string `json:"description,omitempty"`
+	Timestamp    string `json:"timestamp,omitempty"`
+	Color        int    `json:"color,omitempty"`
 }
 
 type EmbedQueueItem struct {

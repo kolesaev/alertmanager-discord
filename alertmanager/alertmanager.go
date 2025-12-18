@@ -1,8 +1,6 @@
 package alertmanager
 
 import (
-	"regexp"
-
 	"github.com/kolesaev/alertmanager-discord/config"
 )
 
@@ -20,15 +18,9 @@ func ExtractBodyInfo(alertmanagerBody MessageBody, config config.Config) Message
 
 	alertName := ""
 
-	urlRegex := regexp.MustCompile(`http.*/graph`)
-
 	for _, alert := range alerts {
 		alertName = alert.Labels["alertname"]
 		status := alert.Status
-
-		if config.PrometheusURL != "" {
-			alert.GeneratorURL = urlRegex.ReplaceAllString(alert.GeneratorURL, config.PrometheusURL+"/graph")
-		}
 
 		severityValue, ok := alert.Labels[config.Severity.Label]
 		if ok {
@@ -40,12 +32,17 @@ func ExtractBodyInfo(alertmanagerBody MessageBody, config config.Config) Message
 
 		if status == "firing" {
 			firingCount++
-			firingAlertsGroupedByName[alertName] = append(firingAlertsGroupedByName[alertName], alert)
+			group := firingAlertsGroupedByName[alertName]
+			group.Alerts = append(group.Alerts, alert)
+			group.GroupLabels = alertmanagerBody.GroupLabels
+			firingAlertsGroupedByName[alertName] = group
 		} else if status == "resolved" {
 			resolvedCount++
-			resolvedAlertsGroupedByName[alertName] = append(resolvedAlertsGroupedByName[alertName], alert)
+			group := resolvedAlertsGroupedByName[alertName]
+			group.Alerts = append(group.Alerts, alert)
+			group.GroupLabels = alertmanagerBody.GroupLabels
+			resolvedAlertsGroupedByName[alertName] = group
 		}
-
 	}
 
 	return MessageBodyInfo{
@@ -54,6 +51,10 @@ func ExtractBodyInfo(alertmanagerBody MessageBody, config config.Config) Message
 		CountBySeverity:             countBySeverity,
 		FiringAlertsGroupedByName:   firingAlertsGroupedByName,
 		ResolvedAlertsGroupedByName: resolvedAlertsGroupedByName,
+		GroupLabels:                 alertmanagerBody.GroupLabels,
+		CommonLabels:                alertmanagerBody.CommonLabels,
+		CommonAnnotations:           alertmanagerBody.CommonAnnotations,
+		ExternalURL:                 alertmanagerBody.ExternalURL,
 	}
 }
 

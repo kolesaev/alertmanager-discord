@@ -1,7 +1,7 @@
 # Built following https://medium.com/@chemidy/create-the-smallest-and-secured-golang-docker-image-based-on-scratch-4752223b7324
 
 # STEP 1 build executable binary
-FROM golang:alpine as builder
+FROM golang:alpine AS builder
 # Install SSL ca certificates
 RUN apk update && apk add git && apk add ca-certificates
 # Create appuser
