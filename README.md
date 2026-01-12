@@ -106,10 +106,6 @@ There's a [docker-compose.yaml](docker-compose.yaml) with an ephemeral Prometheu
 
 To execute the application simply run `docker-compose up`. Whenever you change your config, run `docker-compose restart app`.
 
-### ToDO
-
-- Send message in batches when there is more than 10 embeds;
-
 ## Miscellaneous
 
 - Discord Colors

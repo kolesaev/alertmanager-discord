@@ -65,12 +65,22 @@ dashboardLink:
   enabled: true                    # Whether to show dashboard links
   label: "url"                     # Label name to look for dashboard URL (commonly "url" or "grafana_url")
   text: "Open in Dashboard"        # Text for the dashboard link
+  # Position for dashboard link: "content", "embed_top", or "embed_bottom"
+  # "content" - links in main message content (original behavior)
+  # "embed_top" - links inside embed before title
+  # "embed_bottom" - links inside embed after alert descriptions
+  position: "content"              # Default position
 
 # Generator URL configuration  
 # If enabled, will add a link to the Prometheus/VictoriaMetrics query
 generatorLink:
   enabled: true                    # Whether to show generator links
   text: "Open in PromQL"           # Text for the generator link
+  # Position for generator link: "content", "embed_top", or "embed_bottom"
+  # "content" - links in main message content (original behavior)
+  # "embed_top" - links inside embed before title
+  # "embed_bottom" - links inside embed after alert descriptions
+  position: "content"              # Default position
 
 # Time display configuration
 # If enabled, will show alert start/end times and duration inside code blocks
@@ -79,6 +89,10 @@ timeDisplay:
   startsAtText: "Started at:"      # Text prefix for alert start time
   endsAtText: "Ended at:"          # Text prefix for alert end time (resolved only)
   durationText: "Duration:"        # Text prefix for alert duration (resolved only)
+  hiddenForSeverities:             # List of severities for which time display should be hidden
+    - "information"                # Hide time for information alerts
+    - "info"                       # Hide time for info alerts (alternative name)
+    - "unknown"                    # Hide time for unknown severity alerts
 
 # The Discord channels and their basic info, with any necessary overrides from
 # the global configs, such as "rolesToMention", "severitiesToMention" and

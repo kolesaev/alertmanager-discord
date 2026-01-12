@@ -43,20 +43,25 @@ type DashboardLinkConfig struct {
 	Enabled bool   `json:"enabled" yaml:"enabled"`
 	Label   string `json:"label" yaml:"label"`
 	Text    string `json:"text" yaml:"text"`
+	// Position for dashboard link: "content", "embed_top", or "embed_bottom"
+	Position string `json:"position" yaml:"position"`
 }
 
 // GeneratorLinkConfig defines configuration for generator links
 type GeneratorLinkConfig struct {
 	Enabled bool   `json:"enabled" yaml:"enabled"`
 	Text    string `json:"text" yaml:"text"`
+	// Position for generator link: "content", "embed_top", or "embed_bottom"
+	Position string `json:"position" yaml:"position"`
 }
 
 // TimeDisplayConfig defines configuration for time display
 type TimeDisplayConfig struct {
-	Enabled      bool   `json:"enabled" yaml:"enabled"`
-	StartsAtText string `json:"startsAtText" yaml:"startsAtText"`
-	EndsAtText   string `json:"endsAtText" yaml:"endsAtText"`
-	DurationText string `json:"durationText" yaml:"durationText"`
+	Enabled             bool     `json:"enabled" yaml:"enabled"`
+	StartsAtText        string   `json:"startsAtText" yaml:"startsAtText"`
+	EndsAtText          string   `json:"endsAtText" yaml:"endsAtText"`
+	DurationText        string   `json:"durationText" yaml:"durationText"`
+	HiddenForSeverities []string `json:"hiddenForSeverities" yaml:"hiddenForSeverities"`
 }
 
 // Config defines the (.yaml|.json) config structured to be used by the app
@@ -131,19 +136,22 @@ var defaultConfig = Config{
 		},
 	},
 	DashboardLink: DashboardLinkConfig{
-		Enabled: false,
-		Label:   "url",
-		Text:    "Open in Dashboard",
+		Enabled:  false,
+		Label:    "url",
+		Text:     "Open in Dashboard",
+		Position: "content",
 	},
 	GeneratorLink: GeneratorLinkConfig{
-		Enabled: false,
-		Text:    "Open in PromQL",
+		Enabled:  false,
+		Text:     "Open in PromQL",
+		Position: "content",
 	},
 	TimeDisplay: TimeDisplayConfig{
-		Enabled:      false,
-		StartsAtText: "Started at:",
-		EndsAtText:   "Ended at:",
-		DurationText: "Duration:",
+		Enabled:             false,
+		StartsAtText:        "Started at:",
+		EndsAtText:          "Ended at:",
+		DurationText:        "Duration:",
+		HiddenForSeverities: []string{},
 	},
 }
 

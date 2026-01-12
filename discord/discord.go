@@ -102,33 +102,33 @@ func createDiscordMessage(
 	var dashboardURL string
 	if configs.DashboardLink.Enabled {
 		dashboardURL = getDashboardURLFromGroup(alertmanagerBodyInfo, configs)
-		if dashboardURL != "" {
-			contentBuilder.WriteString(fmt.Sprintf("\n[%s](%s)",
-				configs.DashboardLink.Text, dashboardURL))
-		}
 	}
 
 	var generatorURL string
 	if configs.GeneratorLink.Enabled {
 		generatorURL = getGeneratorURLFromAlerts(alertmanagerBodyInfo)
-		if generatorURL != "" {
-			if configs.DashboardLink.Enabled && dashboardURL != "" {
-				contentBuilder.WriteString("\n")
-			}
-			contentBuilder.WriteString(fmt.Sprintf("[%s](%s)",
-				configs.GeneratorLink.Text, generatorURL))
+	}
+
+	if configs.DashboardLink.Enabled && configs.DashboardLink.Position == "content" && dashboardURL != "" {
+		contentBuilder.WriteString(fmt.Sprintf("[%s](%s)", configs.DashboardLink.Text, dashboardURL))
+	}
+
+	if configs.GeneratorLink.Enabled && configs.GeneratorLink.Position == "content" && generatorURL != "" {
+		if configs.DashboardLink.Enabled && configs.DashboardLink.Position == "content" && dashboardURL != "" {
+			contentBuilder.WriteString("\n")
 		}
+		contentBuilder.WriteString(fmt.Sprintf("[%s](%s)", configs.GeneratorLink.Text, generatorURL))
 	}
 
 	firingEmbeds, err := createDiscordMessageEmbeds(alertmanagerBodyInfo.FiringAlertsGroupedByName,
-		"firing", configs)
+		"firing", configs, dashboardURL, generatorURL)
 	if err != nil {
 		err = fmt.Errorf("discord.createDiscordMessage: Error creating firingEmbeds\n%+v", err)
 		return WebhookParams{}, err
 	}
 
 	resolvedEmbeds, err := createDiscordMessageEmbeds(alertmanagerBodyInfo.ResolvedAlertsGroupedByName,
-		"resolved", configs)
+		"resolved", configs, dashboardURL, generatorURL)
 	if err != nil {
 		err = fmt.Errorf("discord.createDiscordMessage: Error creating resolvedEmbeds %+v", err)
 		return WebhookParams{}, err
@@ -252,7 +252,9 @@ func addRolesToEmbedContent(
 func createDiscordMessageEmbeds(
 	alertsGroupedByName alertmanager.AlertsGroupedByLabel,
 	status string,
-	configs config.Config) ([]MessageEmbed, error) {
+	configs config.Config,
+	dashboardURL string,
+	generatorURL string) ([]MessageEmbed, error) {
 
 	embedQueue := []EmbedQueueItem{}
 
@@ -260,14 +262,13 @@ func createDiscordMessageEmbeds(
 		embed := MessageEmbed{}
 
 		// Get title using correct Telegram template logic
-		title := getAlertTitle(groupData.Alerts, groupData.GroupLabels)
-		embed.Title = fmt.Sprintf("%s\n", title)
+		embed.Title = getAlertTitle(groupData.Alerts, groupData.GroupLabels)
 
 		description := ""
 		for _, alert := range groupData.Alerts {
 			alertText := "```"
 
-			if configs.TimeDisplay.Enabled {
+			if configs.TimeDisplay.Enabled && !shouldHideTimeForSeverity(alert, configs) {
 				alertText += "🔔\n"
 			}
 
@@ -302,10 +303,63 @@ func createDiscordMessageEmbeds(
 			return []MessageEmbed{}, err
 		}
 
-		title = "### " + embed.Title + "\n"
-		embed.Title = ""
+		var linksBuilder strings.Builder
+		var dashboardInEmbed, generatorInEmbed bool
 
-		embed.Description = title + description
+		if configs.DashboardLink.Enabled && dashboardURL != "" {
+			dashPos := configs.DashboardLink.Position
+			if dashPos == "embed_top" || dashPos == "embed_bottom" {
+				dashboardInEmbed = true
+			}
+		}
+
+		if configs.GeneratorLink.Enabled && generatorURL != "" {
+			genPos := configs.GeneratorLink.Position
+			if genPos == "embed_top" || genPos == "embed_bottom" {
+				generatorInEmbed = true
+			}
+		}
+
+		if dashboardInEmbed {
+			linksBuilder.WriteString(fmt.Sprintf("[%s](%s)", configs.DashboardLink.Text, dashboardURL))
+		}
+
+		if generatorInEmbed {
+			if linksBuilder.Len() > 0 {
+				linksBuilder.WriteString("\n")
+			}
+			linksBuilder.WriteString(fmt.Sprintf("[%s](%s)", configs.GeneratorLink.Text, generatorURL))
+		}
+
+		linksString := linksBuilder.String()
+
+		dashPos := "none"
+		if configs.DashboardLink.Enabled && dashboardURL != "" {
+			dashPos = configs.DashboardLink.Position
+		}
+
+		genPos := "none"
+		if configs.GeneratorLink.Enabled && generatorURL != "" {
+			genPos = configs.GeneratorLink.Position
+		}
+
+		linksPosition := "none"
+		if dashPos == "embed_top" || genPos == "embed_top" {
+			linksPosition = "top"
+		} else if dashPos == "embed_bottom" || genPos == "embed_bottom" {
+			linksPosition = "bottom"
+		}
+
+		switch linksPosition {
+		case "top":
+			embed.Description = "### " + embed.Title + "\n" + linksString + "\n" + description
+		case "bottom":
+			embed.Description = "### " + embed.Title + "\n" + description + "\n" + linksString
+		default:
+			embed.Description = "### " + embed.Title + "\n" + description
+		}
+
+		embed.Title = ""
 
 		embedQueueItem := EmbedQueueItem{
 			Embed:    embed,
@@ -364,13 +418,13 @@ func handleEmbedAppearance(
 
 	if status == "resolved" {
 		embed.Color = configs.Status["resolved"].Color
-		embed.Title = fmt.Sprintf("\n%s %s", configs.Status["resolved"].Emoji, embed.Title)
+		embed.Title = fmt.Sprintf("%s %s", configs.Status["resolved"].Emoji, getAlertTitle([]alertmanager.Alert{alert}, alert.Labels))
 		return 0, nil
 	} else if status == "firing" {
 		switch configs.MessageType {
 		case "status":
 			embed.Color = configs.Status["firing"].Color
-			embed.Title = fmt.Sprintf("\n%s %s", configs.Status["firing"].Emoji, embed.Title)
+			embed.Title = fmt.Sprintf("%s %s", configs.Status["firing"].Emoji, getAlertTitle([]alertmanager.Alert{alert}, alert.Labels))
 			return 0, nil
 		case "severity":
 			severityAppearance := handleEmbedSeverity(embed, alert, configs)
@@ -393,7 +447,7 @@ func handleEmbedSeverity(embed *MessageEmbed, alert alertmanager.Alert, configs 
 		if !ok {
 			SeverityAppearance = configs.Severity.Values["unknown"]
 		}
-		embed.Title = fmt.Sprintf("\n%s %s", SeverityAppearance.Emoji, embed.Title)
+		embed.Title = fmt.Sprintf("%s %s", SeverityAppearance.Emoji, getAlertTitle([]alertmanager.Alert{alert}, alert.Labels))
 		embed.Color = SeverityAppearance.Color
 	}
 	return SeverityAppearance
@@ -401,6 +455,11 @@ func handleEmbedSeverity(embed *MessageEmbed, alert alertmanager.Alert, configs 
 
 func formatAlertTimeInfo(alert alertmanager.Alert, status string, configs config.Config) string {
 	if !configs.TimeDisplay.Enabled {
+		return ""
+	}
+
+	// Check if time display should be hidden for this alert's severity
+	if shouldHideTimeForSeverity(alert, configs) {
 		return ""
 	}
 
@@ -433,6 +492,27 @@ func formatAlertTimeInfo(alert alertmanager.Alert, status string, configs config
 	}
 
 	return timeInfo.String()
+}
+
+// shouldHideTimeForSeverity checks if time display should be hidden for alert's severity
+func shouldHideTimeForSeverity(alert alertmanager.Alert, configs config.Config) bool {
+	if len(configs.TimeDisplay.HiddenForSeverities) == 0 {
+		return false
+	}
+
+	severity, ok := alert.Labels[configs.Severity.Label]
+	if !ok {
+		return false
+	}
+
+	// Check if severity is in the hidden list
+	for _, hiddenSeverity := range configs.TimeDisplay.HiddenForSeverities {
+		if severity == hiddenSeverity {
+			return true
+		}
+	}
+
+	return false
 }
 
 func formatDuration(d time.Duration) string {
